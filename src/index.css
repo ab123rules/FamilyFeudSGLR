@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+html {
+  background: #020617;
+  color-scheme: dark;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: #020617;
+  color: #f8fafc;
+}
+
+#root {
+  color: #f8fafc;
+}
+
+/* Answer board flip-reveal */
+@keyframes flipIn {
+  0% { transform: rotateX(90deg); opacity: 0; }
+  60% { transform: rotateX(-8deg); }
+  100% { transform: rotateX(0deg); opacity: 1; }
+}
+.flip-in {
+  animation: flipIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  transform-style: preserve-3d;
+}
+
+/* Strike shake */
+@keyframes strikeShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-14px) rotate(-2deg); }
+  40% { transform: translateX(12px) rotate(2deg); }
+  60% { transform: translateX(-8px); }
+  80% { transform: translateX(8px); }
+}
+.strike-shake {
+  animation: strikeShake 0.45s ease-in-out;
+}
+
+/* Host prompt pulse */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0px rgba(255, 201, 77, 0.35); }
+  50% { box-shadow: 0 0 28px rgba(255, 201, 77, 0.75); }
+}
+.host-pulse {
+  animation: pulseGlow 2.2s ease-in-out infinite;
+}
+
+/* Generic pop-in */
+@keyframes popIn {
+  0% { transform: scale(0.7); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.pop-in {
+  animation: popIn 0.3s ease-out;
+}
+
+/* Screen flash for warnings */
+@keyframes warnFlash {
+  0%, 100% { background-color: rgba(255, 69, 69, 0); }
+  50% { background-color: rgba(255, 69, 69, 0.18); }
+}
+.warn-flash {
+  animation: warnFlash 0.6s ease-in-out infinite;
+}
+
+/* Confetti */
+@keyframes confettiFall {
+  0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0.9; }
+}
+.confetti-piece {
+  position: absolute;
+  top: -10vh;
+  animation-name: confettiFall;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+/* Trophy glow */
+@keyframes trophyGlow {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(255, 201, 77, 0.5)); }
+  50% { filter: drop-shadow(0 0 26px rgba(255, 201, 77, 0.95)); }
+}
+.trophy-glow {
+  animation: trophyGlow 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flip-in, .strike-shake, .host-pulse, .pop-in, .warn-flash, .confetti-piece, .trophy-glow {
+    animation: none !important;
+  }
+}
