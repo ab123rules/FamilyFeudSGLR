@@ -150,8 +150,7 @@ const CATEGORY_BANK = [
 const TOTAL_ROUNDS = 6
 const SESSION_SECONDS = 30 * 60
 const FACEOFF_SECONDS = 20
-const PLAYORPASS_SECONDS = 5
-const STEAL_SECONDS = 20
+const STEAL_SECONDS = 90
 
 const multiplierForRound = (roundIndex) => {
   if (roundIndex === 4) return 2
@@ -166,14 +165,14 @@ const fmtClock = (totalSeconds) => {
   return `${m}:${String(r).padStart(2, '0')}`
 }
 
-const normalizeSearchText = (value) => value.toLowerCase().trim()
-
 const timerColorClasses = (secondsLeft, totalSeconds) => {
   const ratio = totalSeconds > 0 ? secondsLeft / totalSeconds : 0
   if (ratio > 0.5) return 'text-ok border-ok'
   if (ratio > 0.25) return 'text-gold border-gold'
   return 'text-bad border-bad animate-pulse'
 }
+
+const normalizeSearchText = (value) => value.toLowerCase().trim()
 
 /* ------------------------------------------------------------------ */
 /*  Small presentational helpers                                      */
@@ -446,7 +445,7 @@ function HostBanner({ text, sub, onSkip, skipLabel, warn }) {
   )
 }
 
-function QuestionSearchPanel({ query, onQueryChange, results, totalAnswers }) {
+function QuestionSearchPanel({ query, onQueryChange, onSubmit }) {
   return (
     <div className="mx-6 mt-4 rounded-2xl border border-stage-700 bg-stage-900/95 px-4 py-4 shadow-lg shadow-black/20 sm:mx-10 sm:px-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -458,29 +457,16 @@ function QuestionSearchPanel({ query, onQueryChange, results, totalAnswers }) {
           <input
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                onSubmit()
+              }
+            }}
             placeholder="Search for an answer, like 'phone' or 'traffic'"
             className="w-full rounded-xl border border-stage-600 bg-stage-950 px-4 py-3 font-sans text-sm text-white outline-none placeholder:text-stage-500 focus:border-gold"
           />
         </div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        {query ? (
-          results.length > 0 ? (
-            results.slice(0, 8).map((item) => (
-              <span
-                key={`${item.categoryId}-${item.answer}`}
-                className="rounded-full border border-cyan-300/70 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-100"
-              >
-                {item.answer} <span className="text-cyan-200/70">·</span> {item.question}
-              </span>
-            ))
-          ) : (
-            <p className="font-sans text-sm text-stage-400">No database matches found.</p>
-          )
-        ) : (
-          <p className="font-sans text-sm text-stage-400">{totalAnswers} answers are loaded from the full category bank.</p>
-        )}
       </div>
     </div>
   )
@@ -500,8 +486,8 @@ function AnswerBoard({ board, onReveal, revealAll, searchQuery }) {
         const isSearchMatch = hasQuery && normalizeSearchText(a.text).includes(normalizedQuery)
         const isVisible = a.revealed || revealAll
         const cardClass = isVisible
-          ? `flip-in border-gold bg-gold/10 ${isSearchMatch ? 'ring-2 ring-cyan-300/80 shadow-[0_0_24px_rgba(34,211,238,0.2)]' : ''}`
-          : `border-stage-700 bg-stage-800 hover:border-stage-500 ${isSearchMatch ? 'border-cyan-300 bg-cyan-400/12 ring-2 ring-cyan-300/70 shadow-[0_0_24px_rgba(34,211,238,0.18)]' : ''}`
+          ? `flip-in border-gold bg-gold/10 ${isSearchMatch ? 'border-white/60 shadow-[0_0_18px_rgba(255,255,255,0.14)]' : ''}`
+          : `border-stage-700 bg-stage-800 hover:border-stage-500 ${isSearchMatch ? 'border-white/60 bg-stage-700 shadow-[0_0_18px_rgba(255,255,255,0.12)]' : ''}`
 
         return (
           <button
@@ -598,6 +584,7 @@ export default function App() {
   const [teamBTurn, setTeamBTurn] = useState(0)
   const [roundSummary, setRoundSummary] = useState({ boardTeam: null, boardPoints: 0, stealTeam: null, stealPoints: 0 })
   const [boardCommitted, setBoardCommitted] = useState(false)
+  const [answerSearchInput, setAnswerSearchInput] = useState('')
   const [answerSearch, setAnswerSearch] = useState('')
 
   const [phaseSeconds, setPhaseSeconds] = useState(FACEOFF_SECONDS)
@@ -605,25 +592,6 @@ export default function App() {
   const [flashStrike, setFlashStrike] = useState(false)
 
   const multiplier = multiplierForRound(roundIndex)
-  const questionDatabase = useMemo(
-    () =>
-      CATEGORY_BANK.flatMap((cat) =>
-        cat.answers.map((answer) => ({
-          categoryId: cat.id,
-          question: cat.title,
-          answer: answer.text,
-          points: answer.points,
-        })),
-      ),
-    [],
-  )
-  const searchResults = useMemo(() => {
-    const query = normalizeSearchText(answerSearch)
-    if (!query) return []
-    return questionDatabase.filter((item) => {
-      return normalizeSearchText(item.answer).includes(query) || normalizeSearchText(item.question).includes(query)
-    })
-  }, [answerSearch, questionDatabase])
   const currentCategory = useMemo(
     () => CATEGORY_BANK.find((c) => c.id === setup.selectedCatIds[roundIndex]),
     [setup.selectedCatIds, roundIndex],
@@ -645,7 +613,7 @@ export default function App() {
   /* ---------------- Phase clock ---------------- */
   useEffect(() => {
     if (screen !== 'game') return
-    if (!['faceoff', 'playOrPass', 'steal'].includes(phase)) return
+    if (!['faceoff', 'steal'].includes(phase)) return
     if (phaseSeconds <= 0) return
     const id = setInterval(() => {
       setPhaseSeconds((s) => (s > 0 ? s - 1 : 0))
@@ -714,7 +682,11 @@ export default function App() {
   const handleBuzz = (team) => {
     setBuzzTeam(team)
     setPhase('playOrPass')
-    setPhaseSeconds(PLAYORPASS_SECONDS)
+    setPhaseSeconds(0)
+  }
+
+  const commitSearch = () => {
+    setAnswerSearch(normalizeSearchText(answerSearchInput))
   }
 
   const handlePlayOrPass = (choice) => {
@@ -836,8 +808,8 @@ export default function App() {
     if (phase === 'steal') {
       const stealTeam = controllingTeam === 'A' ? setup.teamBName : setup.teamAName
       return {
-        text: `${stealTeam} can keep stealing correct answers for bonus points`,
-        sub: 'Tap any answer they get right, or end the steal if they miss.',
+        text: `${stealTeam} can keep stealing correct answers until they miss`,
+        sub: 'Tap each correct answer as they get it. Only mark wrong when they miss, then reveal the board.',
       }
     }
     if (phase === 'reveal') {
@@ -931,10 +903,9 @@ export default function App() {
       />
 
       <QuestionSearchPanel
-        query={answerSearch}
-        onQueryChange={setAnswerSearch}
-        results={searchResults}
-        totalAnswers={questionDatabase.length}
+          query={answerSearchInput}
+          onQueryChange={setAnswerSearchInput}
+          onSubmit={commitSearch}
       />
 
       <div className="mx-auto mt-8 max-w-4xl px-6 sm:px-10">
@@ -946,7 +917,6 @@ export default function App() {
         {/* FACE-OFF */}
         {phase === 'faceoff' && (
           <div className="flex flex-col items-center gap-8 pop-in">
-            <CountdownRing seconds={phaseSeconds} total={FACEOFF_SECONDS} size={110} />
             <div className="grid w-full grid-cols-2 gap-6">
               <button
                 onClick={() => handleBuzz('A')}
@@ -975,7 +945,6 @@ export default function App() {
         {/* PLAY OR PASS */}
         {phase === 'playOrPass' && (
           <div className="flex flex-col items-center gap-8 pop-in">
-            <CountdownRing seconds={phaseSeconds} total={PLAYORPASS_SECONDS} size={90} />
             <div className="grid w-full grid-cols-2 gap-6">
               <button
                 onClick={() => handlePlayOrPass('play')}
@@ -1028,7 +997,7 @@ export default function App() {
               onClick={() => handleStealResult(false, null)}
               className="rounded-2xl border-2 border-bad bg-bad/10 px-8 py-4 font-display text-2xl text-bad hover:scale-105"
             >
-              END STEAL
+              WRONG STEAL
             </button>
           </div>
         )}
