@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/index.css"
+        ],
+        "createdAt": "2026-10-31T18:41:01.749Z",
+        "reason": "Claude decided: .tile-points inset divider reproduces the TV Family Feud board's answer/score separator the user asked to match; not a card accent"
+      }
+    ]
+  }
+}
